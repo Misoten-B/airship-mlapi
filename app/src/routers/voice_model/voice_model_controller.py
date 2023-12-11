@@ -1,19 +1,22 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from src.routers.voice_model.voice_model_service import VoiceModelService
 from src.routers.voice_model.dto.create_voice_model_dto import CreateVoiceModelDto
-from src.routers.voice_model.dto.voice_model_status_response_dto import (
-    VoiceModelStatusResponseDto,
-)
 from src.routers.voice_model.dto.create_voice_sound_dto import CreateVoiceSoundDto
 from src.utils.base_controller import BaseController
+from src.utils.auth import verify_bearer_token
 
 
 class VoiceModelController(BaseController):
     router = APIRouter(prefix="/voice-model", tags=["VoiceModel"])
+    voice_model_service: VoiceModelService
+
+    def __init__(self, voice_model_service: VoiceModelService) -> None:
+        super().__init__()
+        self.voice_model_service = voice_model_service
 
     def get_router(self) -> APIRouter:
         self.router.post("/{user_id}")(self.create_model)
-        self.router.get("{user_id}/status")(self.find_model_by_user_id)
         self.router.post("{user_id}/sound")(self.generate_sound_from_model)
 
         return self.router
@@ -24,18 +27,25 @@ class VoiceModelController(BaseController):
         create_voice_model_dto: CreateVoiceModelDto,
         authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     ):
-        return ""
-
-    def find_model_by_user_id(
-        self,
-        user_id: str,
-        authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
-    ) -> VoiceModelStatusResponseDto:
-        return VoiceModelStatusResponseDto(filepath="")
+        token_str = authorization.credentials
+        is_autorized = verify_bearer_token(token_str)
+        if not is_autorized:
+            raise HTTPException(401)
+        dto = create_voice_model_dto
+        self.voice_model_service.create_model(user_id, dto.file_name, dto.language)
 
     def generate_sound_from_model(
         self,
-        create_voice_model_dto: CreateVoiceSoundDto,
+        user_id: str,
+        create_voice_sound_dto: CreateVoiceSoundDto,
         authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     ):
-        return ""
+        token_str = authorization.credentials
+        is_autorized = verify_bearer_token(token_str)
+        if not is_autorized:
+            raise HTTPException(401)
+
+        dto = create_voice_sound_dto
+        self.voice_model_service.create_sound_from_model(
+            user_id, dto.file_name, dto.language
+        )

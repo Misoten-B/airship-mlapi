@@ -11,16 +11,27 @@ RUN apt update &&\
 
 RUN python3.11 -m pip install poetry
 
+ENV POETRY_HOME="/opt/poetry" \
+    \
+    PYSETUP_PATH="/opt/pysetup"
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
 ARG USERNAME=docker
 ARG GROUPNAME=user
 ARG UID=1000
 ARG GID=1000
+
 RUN groupadd -g $GID $GROUPNAME && \
     useradd -m -s /bin/bash -u $UID -g $GID $USERNAME
-USER $USERNAME
-
 WORKDIR /home/$USERNAME/vall_e_x_api
 
+COPY ./app/requirements.txt /home/$USERNAME/
+COPY ./app/pyproject.toml /home/$USERNAME/
+
+RUN poetry config virtualenvs.create false &&\
+    cat /home/${USERNAME}/requirements.txt | xargs poetry add &&\
+    poetry install --no-root
+USER $USERNAME
 
 EXPOSE 8000
 

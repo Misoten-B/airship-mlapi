@@ -5,44 +5,45 @@ import time
 import tempfile
 import platform
 import gc
-if platform.system().lower() == 'windows':
+
+if platform.system().lower() == "windows":
     temp = pathlib.PosixPath
     pathlib.PosixPath = pathlib.WindowsPath
-elif platform.system().lower() == 'linux':
+elif platform.system().lower() == "linux":
     temp = pathlib.WindowsPath
     pathlib.WindowsPath = pathlib.PosixPath
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import langid
-langid.set_languages(['en', 'zh', 'ja'])
+
+langid.set_languages(["en", "zh", "ja"])
 
 import torch
 import torchaudio
 
 import numpy as np
 
-from data.tokenizer import (
+from vall_e_x.data.tokenizer import (
     AudioTokenizer,
     tokenize_audio,
 )
-from data.collation import get_text_token_collater
-from models.vallex import VALLE
-from utils.g2p import PhonemeBpeTokenizer
-from descriptions import *
-from macros import *
-from examples import *
+from vall_e_x.data.collation import get_text_token_collater
+from vall_e_x.models.vallex import VALLE
+from vall_e_x.utils.g2p import PhonemeBpeTokenizer
+from vall_e_x.descriptions import *
+from vall_e_x.macros import *
+from vall_e_x.examples import *
 
 import gradio as gr
 from vocos import Vocos
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
 
-
 torch._C._jit_set_profiling_executor(False)
 torch._C._jit_set_profiling_mode(False)
 torch._C._set_graph_executor_optimize(False)
 
-text_tokenizer = PhonemeBpeTokenizer(tokenizer_path="./utils/g2p/bpe_69.json")
+text_tokenizer = PhonemeBpeTokenizer(tokenizer_path="./vall_e_x/utils/g2p/bpe_69.json")
 text_collater = get_text_token_collater()
 
 device = torch.device("cpu")
@@ -53,21 +54,19 @@ print("currnet work device: {}".format(device.type))
 
 # VALL-E-X model
 model = VALLE(
-        N_DIM,
-        NUM_HEAD,
-        NUM_LAYERS,
-        norm_first=True,
-        add_prenet=False,
-        prefix_mode=PREFIX_MODE,
-        share_embedding=True,
-        nar_scale_factor=1.0,
-        prepend_bos=True,
-        num_quantizers=NUM_QUANTIZERS,
-    ).to(device)
-checkpoint = torch.load("./epoch-10.pt", map_location='cpu')
-missing_keys, unexpected_keys = model.load_state_dict(
-    checkpoint["model"], strict=True
-)
+    N_DIM,
+    NUM_HEAD,
+    NUM_LAYERS,
+    norm_first=True,
+    add_prenet=False,
+    prefix_mode=PREFIX_MODE,
+    share_embedding=True,
+    nar_scale_factor=1.0,
+    prepend_bos=True,
+    num_quantizers=NUM_QUANTIZERS,
+).to(device)
+checkpoint = torch.load("./vall_e_x/epoch-10.pt", map_location="cpu")
+missing_keys, unexpected_keys = model.load_state_dict(checkpoint["model"], strict=True)
 del checkpoint
 assert not missing_keys
 model.eval()
@@ -76,16 +75,19 @@ model.eval()
 audio_tokenizer = AudioTokenizer(device)
 
 # Vocos decoder
-vocos = Vocos.from_pretrained('charactr/vocos-encodec-24khz').to(device)
+vocos = Vocos.from_pretrained("charactr/vocos-encodec-24khz").to(device)
 
 # ASR
 whisper_processor = WhisperProcessor.from_pretrained("openai/whisper-medium")
-whisper = WhisperForConditionalGeneration.from_pretrained("openai/whisper-medium").to(device)
+whisper = WhisperForConditionalGeneration.from_pretrained("openai/whisper-medium").to(
+    device
+)
 whisper.config.forced_decoder_ids = None
 
 # Voice Presets
-preset_list = os.walk("./presets/").__next__()[2]
+preset_list = os.walk("./vall_e_x/presets").__next__()[2]
 preset_list = [preset[:-4] for preset in preset_list if preset.endswith(".npz")]
+
 
 def clear_prompts():
     try:
@@ -102,13 +104,16 @@ def clear_prompts():
     except:
         return
 
+
 def transcribe_one(wav, sr):
     if sr != 16000:
         wav4trans = torchaudio.transforms.Resample(sr, 16000)(wav)
     else:
         wav4trans = wav
 
-    input_features = whisper_processor(wav4trans.squeeze(0), sampling_rate=16000, return_tensors="pt").input_features
+    input_features = whisper_processor(
+        wav4trans.squeeze(0), sampling_rate=16000, return_tensors="pt"
+    ).input_features
 
     # generate token ids
     predicted_ids = whisper.generate(input_features.to(device))
@@ -127,7 +132,8 @@ def transcribe_one(wav, sr):
     gc.collect()
     return lang, text_pr
 
-def make_npz_prompt(name:str, uploaded_audio, recorded_audio, transcript_content:str):
+
+def make_npz_prompt(name: str, uploaded_audio, recorded_audio, transcript_content: str):
     clear_prompts()
     audio_prompt = uploaded_audio if uploaded_audio is not None else recorded_audio
     sr, wav_pr = audio_prompt
@@ -158,34 +164,54 @@ def make_npz_prompt(name:str, uploaded_audio, recorded_audio, transcript_content
 
     # tokenize text
     phonemes, _ = text_tokenizer.tokenize(text=f"{text_pr}".strip())
-    text_tokens, enroll_x_lens = text_collater(
-        [
-            phonemes
-        ]
-    )
+    text_tokens, enroll_x_lens = text_collater([phonemes])
 
     message = f"Detected language: {lang_pr}\n Detected text {text_pr}\n"
-    if lang_pr not in ['ja', 'zh', 'en']:
-        return f"Prompt can only made with one of model-supported languages, got {lang_pr} instead", None
+    if lang_pr not in ["ja", "zh", "en"]:
+        return (
+            f"Prompt can only made with one of model-supported languages, got {lang_pr} instead",
+            None,
+        )
 
     # save as npz file
-    np.savez(os.path.join(tempfile.gettempdir(), f"{name}.npz"),
-             audio_tokens=audio_tokens, text_tokens=text_tokens, lang_code=lang2code[lang_pr])
+    np.savez(
+        os.path.join(tempfile.gettempdir(), f"{name}.npz"),
+        audio_tokens=audio_tokens,
+        text_tokens=text_tokens,
+        lang_code=lang2code[lang_pr],
+    )
 
     # delete all variables
-    del audio_tokens, text_tokens, phonemes, lang_pr, text_pr, wav_pr, sr, uploaded_audio, recorded_audio
+    del (
+        audio_tokens,
+        text_tokens,
+        phonemes,
+        lang_pr,
+        text_pr,
+        wav_pr,
+        sr,
+        uploaded_audio,
+        recorded_audio,
+    )
     gc.collect()
     return message, os.path.join(tempfile.gettempdir(), f"{name}.npz")
 
 
 @torch.no_grad()
-def infer_from_audio(text:str, language:str, accent, audio_prompt, record_audio_prompt, transcript_content):
+def infer_from_audio(
+    text: str,
+    language: str,
+    accent,
+    audio_prompt,
+    record_audio_prompt,
+    transcript_content,
+):
     if len(text) > 150:
         return "Rejected, Text too long (should be less than 150 characters)", None
     if audio_prompt is None and record_audio_prompt is None:
         audio_prompts = torch.zeros([1, 0, NUM_QUANTIZERS]).type(torch.int32).to(device)
         text_prompts = torch.zeros([1, 0]).type(torch.int32)
-        lang_pr = 'en'
+        lang_pr = "en"
         text_pr = ""
         enroll_x_lens = 0
         wav_pr, sr = None, None
@@ -211,8 +237,11 @@ def infer_from_audio(text:str, language:str, accent, audio_prompt, record_audio_
         else:
             lang_pr = langid.classify(str(transcript_content))[0]
             text_pr = transcript_content.replace("\n", "")
-            if lang_pr not in ['ja', 'zh', 'en']:
-                return f"Reference audio must be a speech of one of model-supported languages, got {lang_pr} instead", None
+            if lang_pr not in ["ja", "zh", "en"]:
+                return (
+                    f"Reference audio must be a speech of one of model-supported languages, got {lang_pr} instead",
+                    None,
+                )
             lang_token = lang2token[lang_pr]
             text_pr = lang_token + text_pr + lang_token
 
@@ -223,13 +252,9 @@ def infer_from_audio(text:str, language:str, accent, audio_prompt, record_audio_
         enroll_x_lens = None
         if text_pr:
             text_prompts, _ = text_tokenizer.tokenize(text=f"{text_pr}".strip())
-            text_prompts, enroll_x_lens = text_collater(
-                [
-                    text_prompts
-                ]
-            )
+            text_prompts, enroll_x_lens = text_collater([text_prompts])
 
-    if language == 'auto-detect':
+    if language == "auto-detect":
         lang_token = lang2token[langid.classify(text)[0]]
     else:
         lang_token = langdropdown2token[language]
@@ -240,12 +265,7 @@ def infer_from_audio(text:str, language:str, accent, audio_prompt, record_audio_
     # tokenize text
     logging.info(f"synthesize text: {text}")
     phone_tokens, langs = text_tokenizer.tokenize(text=f"_{text}".strip())
-    text_tokens, text_tokens_lens = text_collater(
-        [
-            phone_tokens
-        ]
-    )
-
+    text_tokens, text_tokens_lens = text_collater([phone_tokens])
 
     text_tokens = torch.cat([text_prompts, text_tokens], dim=-1)
     text_tokens_lens += enroll_x_lens
@@ -261,15 +281,27 @@ def infer_from_audio(text:str, language:str, accent, audio_prompt, record_audio_
         text_language=langs if accent == "no-accent" else lang,
     )
     # Decode with Vocos
-    frames = encoded_frames.permute(2,0,1)
+    frames = encoded_frames.permute(2, 0, 1)
     features = vocos.codes_to_features(frames)
     samples = vocos.decode(features, bandwidth_id=torch.tensor([2], device=device))
 
     message = f"text prompt: {text_pr}\nsythesized text: {text}"
     # delete all variables
-    del audio_prompts, text_tokens, text_prompts, phone_tokens, encoded_frames, wav_pr, sr, audio_prompt, record_audio_prompt, transcript_content
+    del (
+        audio_prompts,
+        text_tokens,
+        text_prompts,
+        phone_tokens,
+        encoded_frames,
+        wav_pr,
+        sr,
+        audio_prompt,
+        record_audio_prompt,
+        transcript_content,
+    )
     gc.collect()
     return message, (24000, samples.squeeze(0).cpu().numpy())
+
 
 @torch.no_grad()
 def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
@@ -277,7 +309,7 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
         return "Rejected, Text too long (should be less than 150 characters)", None
     clear_prompts()
     # text to synthesize
-    if language == 'auto-detect':
+    if language == "auto-detect":
         lang_token = lang2token[langid.classify(text)[0]]
     else:
         lang_token = langdropdown2token[language]
@@ -290,9 +322,9 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
         prompt_data = np.load(prompt_file.name)
     else:
         prompt_data = np.load(os.path.join("./presets/", f"{preset_prompt}.npz"))
-    audio_prompts = prompt_data['audio_tokens']
-    text_prompts = prompt_data['text_tokens']
-    lang_pr = prompt_data['lang_code']
+    audio_prompts = prompt_data["audio_tokens"]
+    text_prompts = prompt_data["text_tokens"]
+    lang_pr = prompt_data["lang_code"]
     lang_pr = code2lang[int(lang_pr)]
 
     # numpy to tensor
@@ -302,11 +334,7 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
     enroll_x_lens = text_prompts.shape[-1]
     logging.info(f"synthesize text: {text}")
     phone_tokens, langs = text_tokenizer.tokenize(text=f"_{text}".strip())
-    text_tokens, text_tokens_lens = text_collater(
-        [
-            phone_tokens
-        ]
-    )
+    text_tokens, text_tokens_lens = text_collater([phone_tokens])
     text_tokens = torch.cat([text_prompts, text_tokens], dim=-1)
     text_tokens_lens += enroll_x_lens
     # accent control
@@ -322,21 +350,33 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
         text_language=langs if accent == "no-accent" else lang,
     )
     # Decode with Vocos
-    frames = encoded_frames.permute(2,0,1)
+    frames = encoded_frames.permute(2, 0, 1)
     features = vocos.codes_to_features(frames)
     samples = vocos.decode(features, bandwidth_id=torch.tensor([2], device=device))
 
     message = f"sythesized text: {text}"
 
     # delete all variables
-    del audio_prompts, text_tokens, text_prompts, phone_tokens, encoded_frames, prompt_file, preset_prompt
+    del (
+        audio_prompts,
+        text_tokens,
+        text_prompts,
+        phone_tokens,
+        encoded_frames,
+        prompt_file,
+        preset_prompt,
+    )
     gc.collect()
     return message, (24000, samples.squeeze(0).cpu().numpy())
 
 
-from utils.sentence_cutter import split_text_into_sentences
+from vall_e_x.utils.sentence_cutter import split_text_into_sentences
+
+
 @torch.no_grad()
-def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='no-accent'):
+def infer_long_text(
+    text, preset_prompt, prompt=None, language="auto", accent="no-accent"
+):
     """
     For long audio generation, two modes are available.
     fixed-prompt: This mode will keep using the same prompt the user has provided, and generate audio sentence by sentence.
@@ -344,9 +384,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
     """
     if len(text) > 1000:
         return "Rejected, Text too long (should be less than 1000 characters)", None
-    mode = 'fixed-prompt'
+    mode = "fixed-prompt"
     if (prompt is None or prompt == "") and preset_prompt == "":
-        mode = 'sliding-window'  # If no prompt is given, use sliding-window mode
+        mode = "sliding-window"  # If no prompt is given, use sliding-window mode
     sentences = split_text_into_sentences(text)
     # detect language
     if language == "auto-detect":
@@ -358,9 +398,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
     if prompt is not None and prompt != "":
         # load prompt
         prompt_data = np.load(prompt.name)
-        audio_prompts = prompt_data['audio_tokens']
-        text_prompts = prompt_data['text_tokens']
-        lang_pr = prompt_data['lang_code']
+        audio_prompts = prompt_data["audio_tokens"]
+        text_prompts = prompt_data["text_tokens"]
+        lang_pr = prompt_data["lang_code"]
         lang_pr = code2lang[int(lang_pr)]
 
         # numpy to tensor
@@ -368,9 +408,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
         text_prompts = torch.tensor(text_prompts).type(torch.int32)
     elif preset_prompt is not None and preset_prompt != "":
         prompt_data = np.load(os.path.join("./presets/", f"{preset_prompt}.npz"))
-        audio_prompts = prompt_data['audio_tokens']
-        text_prompts = prompt_data['text_tokens']
-        lang_pr = prompt_data['lang_code']
+        audio_prompts = prompt_data["audio_tokens"]
+        text_prompts = prompt_data["text_tokens"]
+        lang_pr = prompt_data["lang_code"]
         lang_pr = code2lang[int(lang_pr)]
 
         # numpy to tensor
@@ -379,9 +419,11 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
     else:
         audio_prompts = torch.zeros([1, 0, NUM_QUANTIZERS]).type(torch.int32).to(device)
         text_prompts = torch.zeros([1, 0]).type(torch.int32)
-        lang_pr = language if language != 'mix' else 'en'
-    if mode == 'fixed-prompt':
-        complete_tokens = torch.zeros([1, NUM_QUANTIZERS, 0]).type(torch.LongTensor).to(device)
+        lang_pr = language if language != "mix" else "en"
+    if mode == "fixed-prompt":
+        complete_tokens = (
+            torch.zeros([1, NUM_QUANTIZERS, 0]).type(torch.LongTensor).to(device)
+        )
         for text in sentences:
             text = text.replace("\n", "").strip(" ")
             if text == "":
@@ -393,15 +435,15 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
             enroll_x_lens = text_prompts.shape[-1]
             logging.info(f"synthesize text: {text}")
             phone_tokens, langs = text_tokenizer.tokenize(text=f"_{text}".strip())
-            text_tokens, text_tokens_lens = text_collater(
-                [
-                    phone_tokens
-                ]
-            )
+            text_tokens, text_tokens_lens = text_collater([phone_tokens])
             text_tokens = torch.cat([text_prompts, text_tokens], dim=-1)
             text_tokens_lens += enroll_x_lens
             # accent control
-            lang = lang if accent == "no-accent" else token2lang[langdropdown2token[accent]]
+            lang = (
+                lang
+                if accent == "no-accent"
+                else token2lang[langdropdown2token[accent]]
+            )
             encoded_frames = model.inference(
                 text_tokens.to(device),
                 text_tokens_lens.to(device),
@@ -412,7 +454,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
                 prompt_language=lang_pr,
                 text_language=langs if accent == "no-accent" else lang,
             )
-            complete_tokens = torch.cat([complete_tokens, encoded_frames.transpose(2, 1)], dim=-1)
+            complete_tokens = torch.cat(
+                [complete_tokens, encoded_frames.transpose(2, 1)], dim=-1
+            )
         # Decode with Vocos
         frames = complete_tokens.permute(1, 0, 2)
         features = vocos.codes_to_features(frames)
@@ -421,7 +465,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
         message = f"Cut into {len(sentences)} sentences"
         return message, (24000, samples.squeeze(0).cpu().numpy())
     elif mode == "sliding-window":
-        complete_tokens = torch.zeros([1, NUM_QUANTIZERS, 0]).type(torch.LongTensor).to(device)
+        complete_tokens = (
+            torch.zeros([1, NUM_QUANTIZERS, 0]).type(torch.LongTensor).to(device)
+        )
         original_audio_prompts = audio_prompts
         original_text_prompts = text_prompts
         for text in sentences:
@@ -435,15 +481,15 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
             enroll_x_lens = text_prompts.shape[-1]
             logging.info(f"synthesize text: {text}")
             phone_tokens, langs = text_tokenizer.tokenize(text=f"_{text}".strip())
-            text_tokens, text_tokens_lens = text_collater(
-                [
-                    phone_tokens
-                ]
-            )
+            text_tokens, text_tokens_lens = text_collater([phone_tokens])
             text_tokens = torch.cat([text_prompts, text_tokens], dim=-1)
             text_tokens_lens += enroll_x_lens
             # accent control
-            lang = lang if accent == "no-accent" else token2lang[langdropdown2token[accent]]
+            lang = (
+                lang
+                if accent == "no-accent"
+                else token2lang[langdropdown2token[accent]]
+            )
             encoded_frames = model.inference(
                 text_tokens.to(device),
                 text_tokens_lens.to(device),
@@ -454,7 +500,9 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
                 prompt_language=lang_pr,
                 text_language=langs if accent == "no-accent" else lang,
             )
-            complete_tokens = torch.cat([complete_tokens, encoded_frames.transpose(2, 1)], dim=-1)
+            complete_tokens = torch.cat(
+                [complete_tokens, encoded_frames.transpose(2, 1)], dim=-1
+            )
             if torch.rand(1) < 1.0:
                 audio_prompts = encoded_frames[:, :, -NUM_QUANTIZERS:]
                 text_prompts = text_tokens[:, enroll_x_lens:]
@@ -471,6 +519,7 @@ def infer_long_text(text, preset_prompt, prompt=None, language='auto', accent='n
         return message, (24000, samples.squeeze(0).cpu().numpy())
     else:
         raise ValueError(f"No such mode {mode}")
+
 
 # app = gr.Blocks()
 # with app:

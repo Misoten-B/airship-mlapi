@@ -6,12 +6,8 @@ from firebase_admin.auth import (
 
 
 def authorize_bearer_token(token: str) -> bool:
-    found_bearer_str_index = token.find("Bearer ")
-    if found_bearer_str_index == -1 or found_bearer_str_index != 0:
-        return False
-    token_body = token.replace("Bearer ", "")
     try:
-        verify_id_token(token_body)
+        verify_id_token(token)
 
     except (
         ValueError,
