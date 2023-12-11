@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  app:
+    build: 
+       context: "."
+    tty: true
+    ports:
+      - 8000:8000
+    volumes:
+      - type: bind
+        source: ./app
+        target: /home/docker/vall_e_x_api
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
