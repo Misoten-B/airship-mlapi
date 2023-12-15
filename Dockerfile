@@ -1,5 +1,4 @@
 FROM nvidia/cuda:12.0.0-base-ubuntu22.04
-SHELL ["/bin/bash", "-c"]
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 
