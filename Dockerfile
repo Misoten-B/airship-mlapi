@@ -12,7 +12,6 @@ RUN apt update && \
 
 
 ENV PYSETUP_PATH="/opt/pysetup" \
-    PATH="$POETRY_HOME/bin:$PATH" \
     USERNAME=docker \
     GROUPNAME=user \
     UID=1000 \
