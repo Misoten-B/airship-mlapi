@@ -7,7 +7,8 @@ RUN <<EOF
 apt update
 apt -y install software-properties-common
 add-apt-repository ppa:deadsnakes/ppa
-apt update apt -y install python3.11 python3.11-dev python3-pip ffmpeg cmake clang g++-12
+apt update
+apt -y install python3.11 python3.11-dev python3-pip ffmpeg cmake clang g++-12
 apt clean
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 EOF
