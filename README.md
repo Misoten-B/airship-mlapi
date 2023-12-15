@@ -7,15 +7,20 @@
 
 ## Getting Start
 
-1. Building Docker image
+1. Download Project And Large Files
+
+    Download this project files from this repository and epoch-10.pt from https://huggingface.co/spaces/Plachta/VALL-E-X/resolve/main/epoch-10.pt
+    put epoch-10.pt app/vall_e_x 
+
+2. Building Docker image
 
     `docker compose build`
 
-2. Creating Docker container
+3. Creating Docker container
 
     `docker compose up -d`
 
-3. Start Running Server
+4. Start Running Server
     
     `docker exec -it -u docker airship-mlapi-app-1 python3.11 main.py`
 
