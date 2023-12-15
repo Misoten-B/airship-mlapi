@@ -29,3 +29,5 @@ RUN python3.11 -m pip install --no-cache-dir -r /home/${USERNAME}/requirements.t
 USER $USERNAME
 
 EXPOSE 8000
+
+CMD [ "python3.11", "main.py" ]
