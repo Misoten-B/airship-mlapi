@@ -9,7 +9,7 @@ services:
     volumes:
       - type: bind
         source: ./app
-        target: /home/docker/workspace
+        target: /home/docker/vall_e_x_api
 
     deploy:
       resources:

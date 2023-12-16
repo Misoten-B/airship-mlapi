@@ -28,9 +28,10 @@ WORKDIR /home/$USERNAME/vall_e_x_api
 RUN python3.11 -m pip install --upgrade setuptools pip
 COPY ./app/requirements.txt ./app/pyproject.toml /home/$USERNAME/
 
-RUN python3.11 -m pip install --no-cache-dir -r /home/${USERNAME}/requirements.txt
-
 USER $USERNAME
+
+RUN python3.11 -m pip install --no-cache-dir -r /home/${USERNAME}/requirements.txt 
+ENV PATH=/hone/docker/.local/bin:$PATH
 
 EXPOSE 8000
 
