@@ -321,9 +321,9 @@ def infer_from_prompt(
     lang = token2lang[lang_token]
     text = text.replace("\n", "")
     text = lang_token + text + lang_token
-
+    
     # load prompt
-    prompt_data = np.load(prompt_file,allow_pickle=True,encoding="bytes")
+    prompt_data = np.load(prompt_file)
 
     audio_prompts = prompt_data["audio_tokens"]
     text_prompts = prompt_data["text_tokens"]

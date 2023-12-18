@@ -1,6 +1,6 @@
 import io
-from uuid import uuid4
-from scipy import io as scipy_io
+import os
+import httpx
 from soundfile import read,write
 from src.routers.voice_model.dto.create_voice_model_dto import CreateVoiceModelDto
 from src.routers.voice_model.dto.create_voice_sound_dto import CreateVoiceSoundDto
@@ -11,7 +11,7 @@ from vall_e_x.app import make_npz_prompt, infer_from_prompt
 
 
 class VoiceModelService:
-     def create_model(
+    def create_model(
         self, user_id: str,create_voice_model_dto:CreateVoiceModelDto
     ):
         client = BlobStorageClient()
@@ -28,8 +28,13 @@ class VoiceModelService:
         with open(file_path,'rb') as npz_file:
             npz_data= npz_file.read()
             client.upload_voice_model(f"{user_id}.npz",npz_data)
+
+        backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
+        httpx.post(f"{backend_domain}/v1/users/{user_id}/voice_model/status/done")
+
         del(client,dto,audio_file_data,bytes_io,data,sr,wav,result,file_path)
-     def create_sound_from_model(
+
+    def create_sound_from_model(
         self, user_id: str, create_voice_sound_dto:CreateVoiceSoundDto
     ):
         blob_storage_client=BlobStorageClient()
@@ -44,10 +49,14 @@ class VoiceModelService:
         wav_pr=generate_result[1][1]
         
         audio_stream=io.BytesIO()
-        audio_stream.name=dto.output_file_name
+        audio_stream.name=dto.ar_assets_id
         write(audio_stream,wav_pr,sr)
         audio_stream.seek(0)
         file_bytes = audio_stream.read()
         
-        blob_storage_client.upload_voice_sound(dto.output_file_name,file_bytes)
+        blob_storage_client.upload_voice_sound(f"{dto.ar_assets_id}.wav",file_bytes)
+
+        backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
+        httpx.post(f"{backend_domain}/v1/users/ar_assets/{dto.ar_assets_id}/status/done")
+
         del(blob_storage_client,npz_data,npz_bytes,generate_result,sr,wav_pr,audio_stream,file_bytes)
