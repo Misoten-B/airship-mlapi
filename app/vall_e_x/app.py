@@ -5,6 +5,8 @@ import time
 import tempfile
 import platform
 import gc
+from typing import Any, List, Tuple, Union
+from fastapi import File
 
 if platform.system().lower() == "windows":
     temp = pathlib.PosixPath
@@ -22,7 +24,7 @@ import torch
 import torchaudio
 
 import numpy as np
-
+import numpy.typing as npt
 from vall_e_x.data.tokenizer import (
     AudioTokenizer,
     tokenize_audio,
@@ -133,28 +135,32 @@ def transcribe_one(wav, sr):
     return lang, text_pr
 
 
-def make_npz_prompt(name: str, uploaded_audio, recorded_audio, transcript_content: str):
+def make_npz_prompt(
+    name: str,
+    sr:int,
+    wav_pr:npt.NDArray[np.float64],
+    transcript_content: str,
+    language:str
+):
     clear_prompts()
-    audio_prompt = uploaded_audio if uploaded_audio is not None else recorded_audio
-    sr, wav_pr = audio_prompt
     if len(wav_pr) / sr > 15:
         return "Rejected, Audio too long (should be less than 15 seconds)", None
     if not isinstance(wav_pr, torch.FloatTensor):
-        wav_pr = torch.FloatTensor(wav_pr)
-    if wav_pr.abs().max() > 1:
-        wav_pr /= wav_pr.abs().max()
-    if wav_pr.size(-1) == 2:
+        wav_pr = torch.FloatTensor(wav_pr) # type: ignore
+    if wav_pr.abs().max() > 1:# type: ignore
+        wav_pr /= wav_pr.abs().max()# type: ignore
+    if wav_pr.size(-1) == 2:# type: ignore
         wav_pr = wav_pr[:, 0]
     if wav_pr.ndim == 1:
-        wav_pr = wav_pr.unsqueeze(0)
-    assert wav_pr.ndim and wav_pr.size(0) == 1
+        wav_pr = wav_pr.unsqueeze(0)# type: ignore
+    assert wav_pr.ndim and wav_pr.size(0) == 1# type: ignore
 
     if transcript_content == "":
         lang_pr, text_pr = transcribe_one(wav_pr, sr)
         lang_token = lang2token[lang_pr]
         text_pr = lang_token + text_pr + lang_token
     else:
-        lang_pr = langid.classify(str(transcript_content))[0]
+        lang_pr = language
         lang_token = lang2token[lang_pr]
         transcript_content = transcript_content.replace("\n", "")
         text_pr = f"{lang_token}{str(transcript_content)}{lang_token}"
@@ -190,8 +196,6 @@ def make_npz_prompt(name: str, uploaded_audio, recorded_audio, transcript_conten
         text_pr,
         wav_pr,
         sr,
-        uploaded_audio,
-        recorded_audio,
     )
     gc.collect()
     return message, os.path.join(tempfile.gettempdir(), f"{name}.npz")
@@ -201,10 +205,9 @@ def make_npz_prompt(name: str, uploaded_audio, recorded_audio, transcript_conten
 def infer_from_audio(
     text: str,
     language: str,
-    accent,
-    audio_prompt,
-    record_audio_prompt,
-    transcript_content,
+    audio_prompt:Tuple[int,npt.NDArray[np.float64]],
+    record_audio_prompt:Tuple[int,npt.NDArray[np.float64]],
+    transcript_content:str="",
 ):
     if len(text) > 150:
         return "Rejected, Text too long (should be less than 150 characters)", None
@@ -304,7 +307,9 @@ def infer_from_audio(
 
 
 @torch.no_grad()
-def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
+def infer_from_prompt(
+    text: str, language: str, prompt_file: Any
+):
     if len(text) > 150:
         return "Rejected, Text too long (should be less than 150 characters)", None
     clear_prompts()
@@ -312,16 +317,14 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
     if language == "auto-detect":
         lang_token = lang2token[langid.classify(text)[0]]
     else:
-        lang_token = langdropdown2token[language]
+        lang_token = lang2token[language]
     lang = token2lang[lang_token]
     text = text.replace("\n", "")
     text = lang_token + text + lang_token
 
     # load prompt
-    if prompt_file is not None:
-        prompt_data = np.load(prompt_file.name)
-    else:
-        prompt_data = np.load(os.path.join("./presets/", f"{preset_prompt}.npz"))
+    prompt_data = np.load(prompt_file,allow_pickle=True,encoding="bytes")
+
     audio_prompts = prompt_data["audio_tokens"]
     text_prompts = prompt_data["text_tokens"]
     lang_pr = prompt_data["lang_code"]
@@ -338,7 +341,6 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
     text_tokens = torch.cat([text_prompts, text_tokens], dim=-1)
     text_tokens_lens += enroll_x_lens
     # accent control
-    lang = lang if accent == "no-accent" else token2lang[langdropdown2token[accent]]
     encoded_frames = model.inference(
         text_tokens.to(device),
         text_tokens_lens.to(device),
@@ -347,7 +349,7 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
         top_k=-100,
         temperature=1,
         prompt_language=lang_pr,
-        text_language=langs if accent == "no-accent" else lang,
+        text_language=langs ,
     )
     # Decode with Vocos
     frames = encoded_frames.permute(2, 0, 1)
@@ -364,7 +366,6 @@ def infer_from_prompt(text, language, accent, preset_prompt, prompt_file):
         phone_tokens,
         encoded_frames,
         prompt_file,
-        preset_prompt,
     )
     gc.collect()
     return message, (24000, samples.squeeze(0).cpu().numpy())

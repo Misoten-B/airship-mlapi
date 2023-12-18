@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from src.lib.azure.storage.blob_storage_client import BlobStorageClient
 from src.routers.voice_model.voice_model_service import VoiceModelService
 from src.routers.voice_model.dto.create_voice_model_dto import CreateVoiceModelDto
 from src.routers.voice_model.dto.create_voice_sound_dto import CreateVoiceSoundDto
@@ -17,7 +18,7 @@ class VoiceModelController(BaseController):
 
     def get_router(self) -> APIRouter:
         self.router.post("/{user_id}")(self.create_model)
-        self.router.post("{user_id}/sound")(self.generate_sound_from_model)
+        self.router.post("/{user_id}/sound")(self.generate_sound_from_model)
 
         return self.router
 
@@ -28,11 +29,15 @@ class VoiceModelController(BaseController):
         authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     ):
         token_str = authorization.credentials
-        is_autorized = verify_bearer_token(token_str)
-        if not is_autorized:
-            raise HTTPException(401)
+        # is_autorized = verify_bearer_token(token_str)
+        # if not is_autorized:
+        #     raise HTTPException(401)
+        
+        test_file_name= "406e4799-0f6f-42d9-8608-b1625d85e9c3.wav"
         dto = create_voice_model_dto
-        self.voice_model_service.create_model(user_id, dto.file_name, dto.language)
+        self.voice_model_service.create_model(
+            user_id,dto
+        )
 
     def generate_sound_from_model(
         self,
@@ -42,10 +47,10 @@ class VoiceModelController(BaseController):
     ):
         token_str = authorization.credentials
         is_autorized = verify_bearer_token(token_str)
-        if not is_autorized:
-            raise HTTPException(401)
+        # if not is_autorized:
+        #     raise HTTPException(401)
 
         dto = create_voice_sound_dto
         self.voice_model_service.create_sound_from_model(
-            user_id, dto.file_name, dto.language
+            user_id, dto
         )
