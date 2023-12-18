@@ -31,7 +31,7 @@ COPY ./app/requirements.txt ./app/pyproject.toml /home/$USERNAME/
 USER $USERNAME
 
 RUN python3.11 -m pip install --no-cache-dir -r /home/${USERNAME}/requirements.txt 
-ENV PATH=/hone/docker/.local/bin:$PATH
+ENV PATH=/home/docker/.local/bin:$PATH
 
 EXPOSE 8000
 
