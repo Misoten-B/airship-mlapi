@@ -11,8 +11,8 @@ services:
         source: ./app
         target: /home/docker/vall_e_x_api
 
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
