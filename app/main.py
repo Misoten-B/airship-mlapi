@@ -13,7 +13,6 @@ initialize_app(cred)
 origins=[
     os.environ["AIRSHIP_ENDPOINT_URL"],
     "http://localhost",
-    "http://localhost:8080",
     ]
 
 app = fastapi.FastAPI(docs_url="/api",openapi_url="/api/json")
@@ -34,7 +33,7 @@ app_container.include_routers(app.include_router)
 if __name__ =="__main__":
     uvicorn.run(
         app=app,host="0.0.0.0",
-        port=443,
+        port=80,
         ssl_keyfile="/home/docker/vall_e_x_api/key.pem",
         ssl_certfile="/home/docker/vall_e_x_api/cert.pem"
         )
