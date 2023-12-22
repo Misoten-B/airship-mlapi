@@ -12,7 +12,7 @@ initialize_app(cred)
 
 origins=[
     os.environ["AIRSHIP_ENDPOINT_URL"],
-    "http://localhost",
+    "http://localhost:8080",
     ]
 
 app = fastapi.FastAPI(docs_url="/api",openapi_url="/api/json")
