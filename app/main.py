@@ -33,7 +33,5 @@ app_container.include_routers(app.include_router)
 if __name__ =="__main__":
     uvicorn.run(
         app=app,host="0.0.0.0",
-        port=80,
-        ssl_keyfile="/home/docker/vall_e_x_api/key.pem",
-        ssl_certfile="/home/docker/vall_e_x_api/cert.pem"
+        port=8000,
         )
