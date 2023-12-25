@@ -26,7 +26,7 @@ class VoiceModelController(BaseController):
         self,
         user_id: str,
         create_voice_model_dto: CreateVoiceModelDto,
-        authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+        # authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     ):
         token_str = authorization.credentials
         # is_autorized = verify_bearer_token(token_str)
@@ -43,7 +43,7 @@ class VoiceModelController(BaseController):
         self,
         user_id: str,
         create_voice_sound_dto: CreateVoiceSoundDto,
-        authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+        # authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     ):
         token_str = authorization.credentials
         is_autorized = verify_bearer_token(token_str)
