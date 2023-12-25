@@ -7,8 +7,8 @@ from firebase_admin import initialize_app, credentials
 from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
-cred = credentials.Certificate(os.environ["FIREBASE_ADMIN_TOKEN"])
-initialize_app(cred)
+# cred = credentials.Certificate(os.environ["FIREBASE_ADMIN_TOKEN"])
+# initialize_app(cred)
 
 origins=[
     os.environ["AIRSHIP_ENDPOINT_URL"],
