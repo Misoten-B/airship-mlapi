@@ -30,7 +30,7 @@ class VoiceModelService:
             client.upload_voice_model(f"{user_id}.npz",npz_data)
 
         backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
-        httpx.post(f"{backend_domain}/v1/users/{user_id}/voice_model/status/done")
+        # httpx.post(f"{backend_domain}/v1/users/{user_id}/voice_model/status/done")
 
         del(client,dto,audio_file_data,bytes_io,data,sr,wav,result,file_path)
 
@@ -57,6 +57,6 @@ class VoiceModelService:
         blob_storage_client.upload_voice_sound(f"{dto.ar_assets_id}.wav",file_bytes)
 
         backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
-        httpx.post(f"{backend_domain}/v1/users/ar_assets/{dto.ar_assets_id}/status/done")
+        # httpx.post(f"{backend_domain}/v1/users/ar_assets/{dto.ar_assets_id}/status/done")
 
         del(blob_storage_client,npz_data,npz_bytes,generate_result,sr,wav_pr,audio_stream,file_bytes)
