@@ -47,10 +47,13 @@ class VoiceModelService:
             return None
         sr=generate_result[1][0]
         wav_pr=generate_result[1][1]
+        print(sr)
+        print(wav_pr)
         
         audio_stream=io.BytesIO()
         audio_stream.name=dto.ar_assets_id
-        write(audio_stream,wav_pr,sr)
+        
+        write(audio_stream,wav_pr,sr,format= "WAV")
         audio_stream.seek(0)
         file_bytes = audio_stream.read()
         
