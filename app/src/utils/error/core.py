@@ -1,7 +1,11 @@
 class ResourceNotFoundException(Exception):
-    def __init__(self) -> None:
-        super().__init__("Resource Not Found")
+    target:str
+    def __init__(self,target:str) -> None:
+        self.target=target
+        super().__init__(f"Resource Not Found:{self.target}")
 
 class ResourceConflictException(Exception):
-    def __init__(self) -> None:
-        super().__init__("There was a confrict")
+    target:str
+    def __init__(self,target:str) -> None:
+        self.target=target
+        super().__init__(f"There was a confrict:{self.target}")

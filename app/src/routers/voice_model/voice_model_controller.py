@@ -6,6 +6,7 @@ from src.routers.voice_model.dto.create_voice_model_dto import CreateVoiceModelD
 from src.routers.voice_model.dto.create_voice_sound_dto import CreateVoiceSoundDto
 from src.utils.base_controller import BaseController
 from src.utils.auth import verify_bearer_token
+from src.utils.error.core import ResourceConflictException, ResourceNotFoundException
 
 
 class VoiceModelController(BaseController):
@@ -33,11 +34,18 @@ class VoiceModelController(BaseController):
         # if not is_autorized:
         #     raise HTTPException(401)
         
-        test_file_name= "406e4799-0f6f-42d9-8608-b1625d85e9c3.wav"
         dto = create_voice_model_dto
-        self.voice_model_service.create_model(
-            user_id,dto
-        )
+        try:
+            self.voice_model_service.create_model(
+                user_id,dto
+            )
+        except ResourceConflictException as e:
+            raise HTTPException(409,e.target)
+        except ResourceNotFoundException as e:
+            raise HTTPException(404,e.target)
+        except Exception as e:
+            raise HTTPException(500,f"{e.__class__.__name__}: {e.args}")
+
 
     def generate_sound_from_model(
         self,
@@ -51,6 +59,13 @@ class VoiceModelController(BaseController):
         #     raise HTTPException(401)
 
         dto = create_voice_sound_dto
-        self.voice_model_service.create_sound_from_model(
-            user_id, dto
-        )
+        try:
+            self.voice_model_service.create_sound_from_model(
+                user_id, dto
+            )
+
+        except ResourceConflictException as e:
+            raise HTTPException(409,e.target)
+        except ResourceNotFoundException as e:
+            raise HTTPException(404,e.target)
+            

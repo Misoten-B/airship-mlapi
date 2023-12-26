@@ -21,7 +21,8 @@ class VoiceModelService:
         data = read(bytes_io)
         sr=data[1]
         wav=data[0]
-        result = make_npz_prompt(user_id,sr, wav, "",dto.language.value)
+        result = make_npz_prompt(user_id,sr, wav,dto.language.value)
+        
         if result[1] is None:
             return None
         file_path = result[1]
@@ -47,8 +48,6 @@ class VoiceModelService:
             return None
         sr=generate_result[1][0]
         wav_pr=generate_result[1][1]
-        print(sr)
-        print(wav_pr)
         
         audio_stream=io.BytesIO()
         audio_stream.name=dto.ar_assets_id
