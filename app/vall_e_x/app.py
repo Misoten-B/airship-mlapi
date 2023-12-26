@@ -139,7 +139,6 @@ def make_npz_prompt(
     name: str,
     sr:int,
     wav_pr:npt.NDArray[np.float64],
-    transcript_content: str,
     language:str
 ):
     clear_prompts()
@@ -155,15 +154,9 @@ def make_npz_prompt(
         wav_pr = wav_pr.unsqueeze(0)# type: ignore
     assert wav_pr.ndim and wav_pr.size(0) == 1# type: ignore
 
-    if transcript_content == "":
-        lang_pr, text_pr = transcribe_one(wav_pr, sr)
-        lang_token = lang2token[lang_pr]
-        text_pr = lang_token + text_pr + lang_token
-    else:
-        lang_pr = language
-        lang_token = lang2token[lang_pr]
-        transcript_content = transcript_content.replace("\n", "")
-        text_pr = f"{lang_token}{str(transcript_content)}{lang_token}"
+    lang_pr, text_pr = transcribe_one(wav_pr, sr)
+    lang_token = lang2token[language]
+    text_pr = lang_token + text_pr + lang_token
     # tokenize audio
     encoded_frames = tokenize_audio(audio_tokenizer, (wav_pr, sr))
     audio_tokens = encoded_frames[0][0].transpose(2, 1).cpu().numpy()
@@ -207,7 +200,6 @@ def infer_from_audio(
     language: str,
     audio_prompt:Tuple[int,npt.NDArray[np.float64]],
     record_audio_prompt:Tuple[int,npt.NDArray[np.float64]],
-    transcript_content:str="",
 ):
     if len(text) > 150:
         return "Rejected, Text too long (should be less than 150 characters)", None
@@ -233,20 +225,9 @@ def infer_from_audio(
             wav_pr = wav_pr.unsqueeze(0)
         assert wav_pr.ndim and wav_pr.size(0) == 1
 
-        if transcript_content == "":
-            lang_pr, text_pr = transcribe_one(wav_pr, sr)
-            lang_token = lang2token[lang_pr]
-            text_pr = lang_token + text_pr + lang_token
-        else:
-            lang_pr = langid.classify(str(transcript_content))[0]
-            text_pr = transcript_content.replace("\n", "")
-            if lang_pr not in ["ja", "zh", "en"]:
-                return (
-                    f"Reference audio must be a speech of one of model-supported languages, got {lang_pr} instead",
-                    None,
-                )
-            lang_token = lang2token[lang_pr]
-            text_pr = lang_token + text_pr + lang_token
+        lang_pr, text_pr = transcribe_one(wav_pr, sr)
+        lang_token = lang2token[language]
+        text_pr = lang_token + text_pr + lang_token
 
         # tokenize audio
         encoded_frames = tokenize_audio(audio_tokenizer, (wav_pr, sr))
@@ -300,7 +281,6 @@ def infer_from_audio(
         sr,
         audio_prompt,
         record_audio_prompt,
-        transcript_content,
     )
     gc.collect()
     return message, (24000, samples.squeeze(0).cpu().numpy())
