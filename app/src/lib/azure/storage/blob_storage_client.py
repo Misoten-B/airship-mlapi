@@ -32,7 +32,8 @@ class BlobStorageClient:
         container_client = self.client.get_container_client(voice_sounds_container_name)
         is_exists= self.is_exists_blob(container_client.get_blob_client(file_name))
         if is_exists:
-            raise ResourceConflictException("voice-sound")
+            # raise ResourceConflictException("voice-sound")
+            container_client.delete_blob(file_name)
         container_client.upload_blob(file_name, data=data)
 
     def fetch_recorded_audio(self, file_name: str):

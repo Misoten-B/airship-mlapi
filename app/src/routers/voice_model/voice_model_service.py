@@ -29,7 +29,8 @@ class VoiceModelService:
         with open(file_path,'rb') as npz_file:
             npz_data= npz_file.read()
             client.upload_voice_model(f"{user_id}.npz",npz_data)
-
+        print(file_path)
+        os.remove(file_path)
         backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
         # httpx.post(f"{backend_domain}/v1/users/{user_id}/voice_model/status/done")
 
