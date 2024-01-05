@@ -6,7 +6,7 @@ from src.routers.voice_model.dto.create_voice_model_dto import CreateVoiceModelD
 from src.routers.voice_model.dto.create_voice_sound_dto import CreateVoiceSoundDto
 from src.lib.azure.storage.blob_storage_client import BlobStorageClient
 from src.routers.voice_model.language_entity import Language
-
+from gc import collect
 from vall_e_x.app import make_npz_prompt, infer_from_prompt
 
 
@@ -34,8 +34,8 @@ class VoiceModelService:
         backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
         # httpx.post(f"{backend_domain}/v1/users/{user_id}/voice_model/status/done")
 
-        del(client,dto,audio_file_data,bytes_io,data,sr,wav,result,file_path)
-
+        del(client,dto,audio_file_data,bytes_io,data,sr,wav,result,file_path,backend_domain)
+        collect()
     def create_sound_from_model(
         self, user_id: str, create_voice_sound_dto:CreateVoiceSoundDto
     ):
@@ -62,4 +62,5 @@ class VoiceModelService:
         backend_domain=os.environ.get("AIRSHIP_ENDPOINT_URL")
         # httpx.post(f"{backend_domain}/v1/users/ar_assets/{dto.ar_assets_id}/status/done")
 
-        del(blob_storage_client,npz_data,npz_bytes,generate_result,sr,wav_pr,audio_stream,file_bytes)
+        del(blob_storage_client,npz_data,npz_bytes,generate_result,sr,wav_pr,audio_stream,file_bytes,backend_domain)
+        collect()
